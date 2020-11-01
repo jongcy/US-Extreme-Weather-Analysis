@@ -1,0 +1,115 @@
+---
+title: "Losses Estimates from the Extreme Weather Condition in US"
+author: "Cy"
+date: "10/7/2020"
+output: html_document
+---
+## Synopsis
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including the estimates of any fatalities, injuries, and property damage.    
+This analysis is divided into two parts.  
+Part 1 analyzes the fatalities and injuries caused by extreme weather conditions. Top 10 of event types are extracted and presented in graph.  
+Meanwhile, part 2 speaks about the Top 10 economic consequences in terms of property and agricultural crops damage.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r loading, results='asis'}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+
+
+
+## Data Processing
+Download the data from website and read into "raw"
+```{r reading, cache=TRUE}
+if(!file.exists("storm.csv.bz2"))
+        {
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2",
+                destfile = "storm.csv.bz2")
+        }
+
+raw<-read.csv(bzfile("storm.csv.bz2"))
+```
+
+Subsetting useful columns
+```{r useful,cache=TRUE}
+raweco<-raw[ ,c(8,23:28)]
+
+```
+
+Replacing all typos and similar event type into one category. ie: Whirlwind & WHIRLWIND
+depending on 2.1.1 event table
+```{r typos,cache=TRUE}
+j<-list("WHIRLWIND","WATERSPOUT","VOLCANIC","FLOOD","THUNDERSTORM","SNOW")
+
+for (i in 1:length(j)){
+                raweco$EVTYPE[grepl(j[[i]],raweco$EVTYPE,ignore.case = TRUE)]<-j[[i]]
+                }
+
+raweco$EVTYPE<-factor(raweco$EVTYPE)
+
+```
+
+
+COnverting the prefix into value and create a new columns to store these values
+```{r convert,cache=TRUE}
+
+raweco$PROPDMGEXP<-recode(raweco$PROPDMGEXP,"K"=1000,"M"=1000000,"B"=1000000000,.default = 1)
+raweco$CROPDMGEXP<-recode(raweco$CROPDMGEXP,"K"=1000,"M"=1000000,"B"=1000000000,.default = 1)
+raweco$prop<-raweco$PROPDMG*raweco$PROPDMGEXP
+raweco$crop<-raweco$CROPDMG*raweco$CROPDMGEX
+
+```
+
+## Results
+### Top 10 most harmful events.  
+The data is grouped by event type and pivoted according to fatalities and injuries. Top 10 events with injuries and fatalities are shown
+``` {r harming,cache=TRUE}
+harm<-raweco%>%group_by(EVTYPE)%>%summarise('FATALITIES'=sum(FATALITIES),'INJURIES'=sum(INJURIES))%>% arrange(desc(FATALITIES+INJURIES))
+                
+print(harm[1:10,])
+
+```
+
+Extract top 10 and create plot
+
+```{r plots,cache=TRUE}
+
+harm$EVTYPE<-factor(harm$EVTYPE)
+harm10<-harm[1:10,]
+df<-harm10%>%select(EVTYPE,FATALITIES,INJURIES)%>%gather(key = "variable",value="value",FATALITIES:INJURIES)
+p1<-ggplot(df, aes(x = EVTYPE, y = value))+geom_point(aes(color = variable))+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+labs(y="Fatalities and Injuries",x="Event Type",title = "Top 10 most harmful events by Fatalities and Injuries")
+
+print(p1)
+```
+  
+  
+  ***The most harmful event to population health is tornado, followed by Excessive heat and TSTM Wind***
+
+  
+### Top 10 most economical harmful events
+``` {r harming2,cache=TRUE}
+econ<-raweco%>% group_by(EVTYPE)%>% summarise('prop'=sum(prop),'crop'=sum(crop))%>% arrange(desc(prop+crop))
+                
+print(econ[1:10,])
+
+```
+
+Extract top 10 and create plot
+
+```{r plot3,cache=TRUE}
+
+econ$EVTYPE<-factor(econ$EVTYPE)
+econ10<-econ[1:10,]
+df2<-econ10%>%select(EVTYPE,prop,crop)%>%gather(key="variable2",value = "value2",crop:prop)
+p2<-ggplot(df2,aes(x=EVTYPE,y=value2))+geom_point(aes(color=variable2))+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+labs(y="Property and Crops Yield Damages",x="Event Type",title ="Top 10 most harmful events by Property and Crops Damages")
+
+print(p2)
+```
+  
+  
+  ***The most disastrous event is Flood, followed by Hurricane/Typhoon, Tornado and Storm Surge***

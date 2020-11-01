@@ -1,0 +1,31 @@
+---
+title: "storm"
+author: "Cy"
+date: "10/7/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Download the data from website and read into "raw"
+```{r reading, cache=TRUE}
+if(!file.exists("storm.csv.bz2"))
+        {
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2",
+                destfile = "storm.csv.bz2")
+        }
+
+raw<-read.csv(bzfile("storm.csv.bz2"))
+```
+
+Subsetting useful columns
+```{r useful}
+raweco<-raw[ ,c(8,23:28)]
+
+```
+
+
+library(dplyr)
+
+
